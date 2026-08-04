@@ -66,7 +66,20 @@ python scripts/build_document.py conteudo.md --out meu-documento --docx --pdf
 ```
 
 Sintaxe Markdown suportada: `#`/`##`/`###` (títulos), `-`/`*` (lista com
-marcador), `1.` (lista numerada), `**negrito**` e `---` (quebra de página).
+marcador), `1.` (lista numerada), `**negrito**`, `---` (quebra de página) e
+**tabelas** no formato com `|` (ótimas para orçamentos — cabeçalho destacado,
+linhas zebradas e alinhamento de colunas via `:--`, `--:`, `:--:`):
+
+```markdown
+| Item        | Qtd | Valor    |
+| ----------- | --: | -------: |
+| Consultoria |   1 | R$ 500   |
+| Suporte     |   2 | R$ 300   |
+```
+
+As cores da tabela seguem as constantes `BRAND_HEADER_HEX`, `BRAND_ZEBRA_HEX`
+e `BRAND_GRID_HEX` no topo de `scripts/build_document.py` — ajuste-as para a
+identidade visual do cliente.
 
 ## Estrutura
 

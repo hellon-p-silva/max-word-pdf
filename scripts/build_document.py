@@ -24,6 +24,15 @@ Markdown suportado (mantenha simples):
     **negrito**           -> negrito inline
     ---                   -> quebra de página
 
+    Tabelas (ótimas para orçamentos):
+        | Item        | Qtd | Valor    |
+        | ----------- | --: | -------: |
+        | Consultoria |   1 | R$ 500   |
+        | Suporte     |   2 | R$ 200   |
+    A 2ª linha (traços) define as colunas; use ":" para alinhar
+    (`:--` esquerda, `--:` direita, `:--:` centro). O cabeçalho ganha
+    destaque e as linhas ficam zebradas.
+
 Dependências:
     pip install python-docx reportlab
 """
@@ -34,6 +43,44 @@ import sys
 
 
 # ----------------------------- Parser de Markdown -----------------------------
+
+def _split_row(line):
+    """Divide uma linha de tabela em células, ignorando os | das bordas."""
+    s = line.strip()
+    if s.startswith("|"):
+        s = s[1:]
+    if s.endswith("|"):
+        s = s[:-1]
+    return [c.strip() for c in s.split("|")]
+
+
+def _is_separator_row(line):
+    """Detecta a linha separadora de tabela: | --- | :--: | --- |."""
+    if "-" not in line:
+        return False
+    cells = _split_row(line)
+    if not cells:
+        return False
+    return all(re.fullmatch(r":?-+:?", c.strip()) for c in cells if c.strip() != "") \
+        and any(c.strip() for c in cells)
+
+
+def _parse_align(sep_line):
+    """Lê o alinhamento de cada coluna a partir da linha separadora."""
+    aligns = []
+    for c in _split_row(sep_line):
+        c = c.strip()
+        left, right = c.startswith(":"), c.endswith(":")
+        if left and right:
+            aligns.append("center")
+        elif right:
+            aligns.append("right")
+        elif left:
+            aligns.append("left")
+        else:
+            aligns.append("")
+    return aligns
+
 
 def parse_markdown(text):
     """Converte markdown simples numa lista de blocos estruturados."""
@@ -52,6 +99,20 @@ def parse_markdown(text):
     while i < len(lines):
         line = lines[i]
         stripped = line.strip()
+
+        # Tabela: linha com "|" seguida imediatamente por uma linha separadora.
+        if "|" in stripped and i + 1 < len(lines) and _is_separator_row(lines[i + 1]):
+            flush_para()
+            header = _split_row(lines[i])
+            align = _parse_align(lines[i + 1])
+            j = i + 2
+            rows = []
+            while j < len(lines) and lines[j].strip() and "|" in lines[j]:
+                rows.append(_split_row(lines[j]))
+                j += 1
+            blocks.append(("table", {"header": header, "rows": rows, "align": align}))
+            i = j
+            continue
 
         if stripped == "":
             flush_para()
@@ -93,7 +154,68 @@ def split_bold(text):
     return parts
 
 
+# Cores da marca (ajuste aqui para casar com sua identidade visual).
+BRAND_HEADER_HEX = "#2F5496"   # fundo do cabeçalho da tabela
+BRAND_ZEBRA_HEX = "#F2F2F2"    # fundo das linhas alternadas
+BRAND_GRID_HEX = "#BFBFBF"     # cor das linhas de grade
+
+
 # ------------------------------- Geração DOCX --------------------------------
+
+def _add_docx_table(doc, tdata):
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import RGBColor
+
+    header = tdata["header"]
+    rows = tdata["rows"]
+    align = tdata.get("align") or []
+    ncols = max(len(header), max((len(r) for r in rows), default=0))
+
+    align_map = {
+        "right": WD_ALIGN_PARAGRAPH.RIGHT,
+        "center": WD_ALIGN_PARAGRAPH.CENTER,
+        "left": WD_ALIGN_PARAGRAPH.LEFT,
+    }
+
+    def col_align(idx):
+        a = align[idx] if idx < len(align) else ""
+        return align_map.get(a)
+
+    table = doc.add_table(rows=1, cols=ncols)
+    # Estilo com grade; cai para 'Table Grid' se o tema não tiver o realçado.
+    try:
+        table.style = "Light Grid Accent 1"
+    except KeyError:
+        try:
+            table.style = "Table Grid"
+        except KeyError:
+            pass
+
+    hdr_cells = table.rows[0].cells
+    for idx in range(ncols):
+        text = header[idx] if idx < len(header) else ""
+        para = hdr_cells[idx].paragraphs[0]
+        a = col_align(idx)
+        if a is not None:
+            para.alignment = a
+        for seg, _ in split_bold(text):
+            run = para.add_run(seg)
+            run.bold = True  # cabeçalho sempre em negrito
+
+    for row in rows:
+        cells = table.add_row().cells
+        for idx in range(ncols):
+            val = row[idx] if idx < len(row) else ""
+            para = cells[idx].paragraphs[0]
+            a = col_align(idx)
+            if a is not None:
+                para.alignment = a
+            for seg, is_bold in split_bold(val):
+                run = para.add_run(seg)
+                run.bold = is_bold
+
+    doc.add_paragraph()  # respiro depois da tabela
+
 
 def build_docx(blocks, out_path):
     try:
@@ -129,6 +251,8 @@ def build_docx(blocks, out_path):
             add_runs(doc.add_paragraph(style="List Bullet"), content)
         elif kind == "ol":
             add_runs(doc.add_paragraph(style="List Number"), content)
+        elif kind == "table":
+            _add_docx_table(doc, content)
         elif kind == "pagebreak":
             doc.add_page_break()
         elif kind == "p":
@@ -185,6 +309,76 @@ def _register_unicode_font():
     return "Helvetica", "Helvetica-Bold"
 
 
+def _make_pdf_table(tdata, font, font_bold, body_style, avail_width):
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import Paragraph, Table, TableStyle
+
+    header = tdata["header"]
+    rows = tdata["rows"]
+    align = tdata.get("align") or []
+    ncols = max(len(header), max((len(r) for r in rows), default=0))
+    if ncols == 0:
+        return None
+
+    cell = ParagraphStyle("Cell", parent=body_style, fontName=font,
+                          fontSize=10, leading=13, spaceAfter=0, spaceBefore=0)
+    head = ParagraphStyle("CellHead", parent=cell, fontName=font_bold,
+                          textColor=colors.white)
+
+    # Células com Paragraph seguem o alinhamento DO PARÁGRAFO (não o do
+    # TableStyle), então criamos uma variação de estilo por coluna.
+    ta_map = {"right": TA_RIGHT, "center": TA_CENTER, "left": TA_LEFT}
+
+    def styled(base, ci):
+        a = align[ci] if ci < len(align) else ""
+        if a in ta_map:
+            return ParagraphStyle(f"{base.name}{ci}", parent=base,
+                                  alignment=ta_map[a])
+        return base
+
+    def norm(row):
+        return [row[i] if i < len(row) else "" for i in range(ncols)]
+
+    data = [[Paragraph(_escape_rl(c), styled(head, ci))
+             for ci, c in enumerate(norm(header))]]
+    for row in rows:
+        data.append([Paragraph(_escape_rl(c), styled(cell, ci))
+                     for ci, c in enumerate(norm(row))])
+
+    # Larguras proporcionais ao maior conteúdo de cada coluna, somando a
+    # largura disponível — evita estourar a margem da página.
+    weights = []
+    for ci in range(ncols):
+        longest = len(header[ci]) if ci < len(header) else 1
+        for row in rows:
+            if ci < len(row):
+                longest = max(longest, len(row[ci]))
+        weights.append(max(longest, 1))
+    total = float(sum(weights)) or 1.0
+    col_widths = [avail_width * w / total for w in weights]
+
+    tbl = Table(data, colWidths=col_widths, hAlign="LEFT", repeatRows=1)
+    style = [
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(BRAND_HEADER_HEX)),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor(BRAND_GRID_HEX)),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1),
+         [colors.white, colors.HexColor(BRAND_ZEBRA_HEX)]),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+        ("TOPPADDING", (0, 0), (-1, -1), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+    ]
+    for ci in range(ncols):
+        a = align[ci] if ci < len(align) else ""
+        if a:
+            style.append(("ALIGN", (ci, 0), (ci, -1), a.upper()))
+    tbl.setStyle(TableStyle(style))
+    return tbl
+
+
 def build_pdf(blocks, out_path):
     try:
         from reportlab.lib.enums import TA_CENTER
@@ -210,9 +404,11 @@ def build_pdf(blocks, out_path):
     h3 = ParagraphStyle("H3", parent=styles["Heading2"], fontSize=12.5,
                         spaceBefore=8, spaceAfter=4, fontName=font_bold)
 
+    left_margin = right_margin = 2.2 * cm
     doc = SimpleDocTemplate(out_path, pagesize=A4,
-                            leftMargin=2.2 * cm, rightMargin=2.2 * cm,
+                            leftMargin=left_margin, rightMargin=right_margin,
                             topMargin=2 * cm, bottomMargin=2 * cm)
+    avail_width = A4[0] - left_margin - right_margin
     story = []
     pending = []  # itens de lista acumulados
 
@@ -244,6 +440,11 @@ def build_pdf(blocks, out_path):
             story.append(Paragraph(_escape_rl(content), h3))
         elif kind == "p":
             story.append(Paragraph(_escape_rl(content), body))
+        elif kind == "table":
+            tbl = _make_pdf_table(content, font, font_bold, body, avail_width)
+            if tbl is not None:
+                story.append(tbl)
+                story.append(Spacer(1, 10))
         elif kind == "pagebreak":
             story.append(PageBreak())
 

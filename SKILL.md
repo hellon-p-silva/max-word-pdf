@@ -79,6 +79,25 @@ Parágrafo normal, com **negrito** onde precisar.
 ---   (linha sozinha = quebra de página)
 ```
 
+Para **orçamentos, tabelas de preços ou qualquer dado estruturado**, use
+tabelas Markdown (o gerador renderiza com cabeçalho destacado e linhas
+zebradas, no PDF e no Word):
+
+```markdown
+| Descrição            | Qtd | Valor unit. | Subtotal      |
+| -------------------- | --: | ----------: | ------------: |
+| Consultoria inicial  |   1 |   R$ 500,00 |     R$ 500,00 |
+| Suporte              |   2 |   R$ 150,00 |     R$ 300,00 |
+| **Total**            |     |             | **R$ 800,00** |
+```
+
+A segunda linha (traços) define as colunas. Use `:` para alinhar: `:--`
+alinha à esquerda, `--:` à direita (ideal para valores/quantidades) e `:--:`
+ao centro. Deixe células em branco quando não se aplicarem (ex.: a linha de
+total). Se quiser combinar as **cores da tabela com a marca do cliente**,
+ajuste as constantes `BRAND_HEADER_HEX`, `BRAND_ZEBRA_HEX` e `BRAND_GRID_HEX`
+no início do `scripts/build_document.py`.
+
 ## Passo 3 — Escolher o formato
 
 Respeite o que a pessoa pediu no áudio:
