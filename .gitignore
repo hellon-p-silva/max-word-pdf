@@ -8,6 +8,9 @@ venv/
 # Documentos gerados durante testes
 *.pdf
 *.docx
+# ...exceto os modelos versionados
+!templates/**/*.docx
+!templates/**/*.pdf
 !docs/**/*.pdf
 !docs/**/*.docx
 

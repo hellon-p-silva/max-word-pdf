@@ -98,6 +98,53 @@ total). Se quiser combinar as **cores da tabela com a marca do cliente**,
 ajuste as constantes `BRAND_HEADER_HEX`, `BRAND_ZEBRA_HEX` e `BRAND_GRID_HEX`
 no início do `scripts/build_document.py`.
 
+## Orçamento com a marca MasterLeds (template pronto)
+
+Quando o pedido for um **orçamento da MasterLeds** (locação de painel de LED),
+não gere do zero: use o modelo oficial em
+`templates/orcamento-masterleds.docx`, que já traz o **logo no cabeçalho**, o
+**endereço no rodapé**, os **logos de parceiros** (Absen/Leyard), o texto de
+**responsabilidades do contratante** e a **assinatura** (Eclair Vila Mendes,
+CEO). Isso preserva a identidade visual — reconstruir na mão perderia as
+imagens e o layout.
+
+O script `scripts/orcamento_masterleds.py` preenche o modelo a partir do que a
+pessoa falou. Monte um JSON com os campos e rode:
+
+```bash
+python "<skill>/scripts/orcamento_masterleds.py" dados.json --out "orcamento-<cliente>"
+```
+
+`dados.json` (todos os campos são opcionais — o que não vier fica como no
+modelo):
+
+```json
+{
+  "cliente": "Nome do cliente",
+  "data_evento": "20/09/2026",
+  "data_montagem": "19/09/2026",
+  "local": "Local do evento",
+  "itens": [
+    "01 Painel de Led PH2.9mm Indoor Absen - Tamanho 4x2m",
+    "01 Processador VX1000",
+    "Transportes - Equipamentos e Equipe"
+  ],
+  "valor_total": "R$ 12.500,00",
+  "forma_pagamento": "30/60 DD Boleto bancário"
+}
+```
+
+Extraia esses dados do áudio: quantidades e equipamentos viram a lista de
+`itens` (mantenha o padrão "01 ..." usado pela empresa), o preço fechado vira
+`valor_total`, etc. Se faltar um dado importante (ex.: valor total), pergunte
+antes de gerar em vez de inventar.
+
+O resultado é um **.docx com a marca**. Como o logo e o rodapé vivem no
+cabeçalho/rodapé do Word, o PDF fiel sai exportando pelo próprio Word ("Salvar
+como PDF"); avise isso à pessoa ao entregar. (O gerador genérico
+`build_document.py` produz PDF direto, mas sem a identidade visual da
+MasterLeds — por isso, para orçamentos da marca, prefira este template.)
+
 ## Passo 3 — Escolher o formato
 
 Respeite o que a pessoa pediu no áudio:

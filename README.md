@@ -81,13 +81,34 @@ As cores da tabela seguem as constantes `BRAND_HEADER_HEX`, `BRAND_ZEBRA_HEX`
 e `BRAND_GRID_HEX` no topo de `scripts/build_document.py` — ajuste-as para a
 identidade visual do cliente.
 
+## Orçamento com marca (template MasterLeds)
+
+Além do gerador genérico, o repositório inclui um **modelo de orçamento pronto**
+da MasterLeds em `templates/orcamento-masterleds.docx`, com logo no cabeçalho,
+endereço no rodapé, logos de parceiros, responsabilidades do contratante e
+assinatura. O script `scripts/orcamento_masterleds.py` preenche esse modelo
+(cliente, datas, local, itens, valor, forma de pagamento) **preservando toda a
+identidade visual**:
+
+```bash
+python scripts/orcamento_masterleds.py dados.json --out "orcamento-cliente"
+```
+
+Veja o formato do `dados.json` no cabeçalho do próprio script. O resultado é um
+`.docx` com a marca; para PDF, exporte pelo Word ("Salvar como PDF").
+
 ## Estrutura
 
 ```
 max-word-pdf/
-├── SKILL.md                  # instruções da skill (lidas pelo Claude)
+├── SKILL.md                       # instruções da skill (lidas pelo Claude)
 ├── scripts/
-│   └── build_document.py     # gerador de PDF/Word a partir de Markdown
+│   ├── build_document.py          # gerador genérico de PDF/Word (Markdown)
+│   └── orcamento_masterleds.py    # preenche o modelo de orçamento da marca
+├── templates/
+│   └── orcamento-masterleds.docx  # modelo de orçamento com identidade visual
+├── assets/
+│   └── logos/                     # logos extraídos do modelo (reuso futuro)
 ├── requirements.txt
 └── README.md
 ```
