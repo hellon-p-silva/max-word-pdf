@@ -57,6 +57,28 @@ sozinha. Exemplos de frases que acionam a skill:
 - "gera um Word disso"
 - "gravei um recado, coloca numa carta"
 
+### Comandos rápidos (slash commands)
+
+Para agilizar, o repositório inclui dois atalhos em `commands/`. Copie-os para
+`~/.claude/commands/` e use dentro do Claude Code:
+
+- **`/documento`** — gera um documento (PDF/Word) a partir de um áudio ou de uma
+  descrição em texto. Ex.: `/documento faz uma carta pro cliente X avisando...`
+  (ou grave um áudio e digite só `/documento`).
+- **`/orcamento`** — gera um orçamento da MasterLeds já no template oficial (com
+  logo, rodapé e assinatura). Ex.: `/orcamento cliente BEE2BEE, local SP,
+  painéis de LED, R$ 3.400`.
+
+```bash
+# Linux / macOS
+cp commands/*.md ~/.claude/commands/
+```
+
+```powershell
+# Windows (PowerShell)
+Copy-Item commands\*.md "$env:USERPROFILE\.claude\commands\"
+```
+
 ### Uso direto do gerador (opcional)
 
 O script também funciona sozinho, a partir de um arquivo Markdown:
@@ -107,6 +129,9 @@ max-word-pdf/
 │   └── orcamento_masterleds.py    # preenche o modelo de orçamento da marca
 ├── templates/
 │   └── orcamento-masterleds.docx  # modelo de orçamento com identidade visual
+├── commands/                      # slash commands (/documento, /orcamento)
+│   ├── documento.md
+│   └── orcamento.md
 ├── assets/
 │   └── logos/                     # logos extraídos do modelo (reuso futuro)
 ├── requirements.txt
