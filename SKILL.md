@@ -100,16 +100,24 @@ no início do `scripts/build_document.py`.
 
 ## Orçamento com a marca MasterLeds (template pronto)
 
+> **⚠️ O modelo já está incluído nesta skill — NUNCA peça o arquivo ao
+> usuário.** O template fica em `templates/orcamento-masterleds.docx`, dentro
+> da própria pasta da skill, e o script o carrega automaticamente. Se o
+> usuário pedir um orçamento da MasterLeds, **vá direto gerar** — não peça para
+> anexar/enviar nenhum modelo. O usuário só precisa fornecer os *dados* do
+> orçamento (cliente, itens, valor…), nunca o arquivo-base.
+
 Quando o pedido for um **orçamento da MasterLeds** (locação de painel de LED),
-não gere do zero: use o modelo oficial em
-`templates/orcamento-masterleds.docx`, que já traz o **logo no cabeçalho**, o
-**endereço no rodapé**, os **logos de parceiros** (Absen/Leyard), o texto de
-**responsabilidades do contratante** e a **assinatura** (Eclair Vila Mendes,
-CEO). Isso preserva a identidade visual — reconstruir na mão perderia as
+não gere do zero: use o modelo oficial embutido, que já traz o **logo no
+cabeçalho**, o **endereço no rodapé**, os **logos de parceiros** (Absen/Leyard),
+o texto de **responsabilidades do contratante** e a **assinatura** (Eclair Vila
+Mendes, CEO). Isso preserva a identidade visual — reconstruir na mão perderia as
 imagens e o layout.
 
 O script `scripts/orcamento_masterleds.py` preenche o modelo a partir do que a
-pessoa falou. Monte um JSON com os campos e rode:
+pessoa falou. Ele **usa o template embutido por padrão** (via caminho relativo
+`../templates/orcamento-masterleds.docx`), então basta montar um JSON com os
+campos e rodar — sem passar `--template` e sem pedir arquivo nenhum:
 
 ```bash
 python "<skill>/scripts/orcamento_masterleds.py" dados.json --out "orcamento-<cliente>"
